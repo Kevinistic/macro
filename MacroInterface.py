@@ -71,7 +71,7 @@ class FrameMain(Frame):
         self.buttonFrame.grid(column=0,row=3,sticky='SW')
 
         self.updateButton = ttk.Button(self.buttonFrame,text='Update',width=10)
-        self.settingsButton = ttk.Button(self.buttonFrame,text='Settings',width=10,command=self.change_toggle_key)
+        self.settingsButton = ttk.Button(self.buttonFrame,text='Settings',width=10,command=self.show_settings)
         self.aboutButton = ttk.Button(self.buttonFrame,text='About',width=10)
         self.updateButton.grid(column=0,row=0,sticky='W')
         self.settingsButton.grid(column=1,row=0,sticky='W')
@@ -155,9 +155,9 @@ class FrameMain(Frame):
                 for key, _ in self.macro_list:
                     self.keyboard_controller.press(key)
                     self.keyboard_controller.release(key)
-                    time.sleep(0.01)
+                    time.sleep(0.03)
             else:
-                time.sleep(0.01)
+                time.sleep(0.03)
 
     def start_global_key_listener(self):
         def on_press(key):
@@ -170,14 +170,42 @@ class FrameMain(Frame):
                 print(f"Listener error: {e}")
         Listener(on_press=on_press).run()  # runs in thread
 
-    def change_toggle_key(self):
+    def show_settings(self):
+        top = Toplevel(self)
+        top.title("Settings")
+        top.geometry("500x400")
+        top.attributes('-topmost', True)
+        top.grab_set()
+        
+        # Configure grid for the settings window
+        top.columnconfigure(0, weight=1)
+        top.columnconfigure(1, weight=3)
+        
+        # Toggle key setting
+        Label(top, text="Toggle Key:").grid(
+            column=0, row=0, padx=5, pady=5, sticky='e')
+        
+        current_key_frame = Frame(top)
+        current_key_frame.grid(column=1, row=0, sticky='w')
+        
+        Label(current_key_frame, text=self.toggle_key, width=5).pack(side='left')
+        ttk.Button(current_key_frame, text="Change", 
+                    command=lambda: self.change_toggle_key(top)).pack(side='left', padx=5)
+        
+        Label(top, text="Global Spam Speed:").grid(
+            column=0, row=1, sticky='e')
+        Label(top, text="Coming Soon").grid(
+            column=1, row=1, sticky='w')
+
+    def change_toggle_key(self, settings_window=None):
         top = Toplevel(self)
         top.title("Change Toggle Key")
         top.geometry("300x150")
         top.attributes('-topmost', True)
         top.grab_set()
 
-        Label(top, text=f"Press a new key to toggle spam (current: {self.toggle_key}).", wraplength=280, justify="center").pack(pady=10)
+        Label(top, text=f"Press a new key to toggle spam (current: {self.toggle_key}).", 
+              wraplength=280, justify="center").pack(pady=10)
 
         listener_holder = {}
 
@@ -190,6 +218,13 @@ class FrameMain(Frame):
             self.toggle_key = key_str
             messagebox.showinfo("Key Changed", f"New toggle key is set to: {self.toggle_key}")
             print(f"Toggle key changed to: {self.toggle_key}")
+            
+            # Update the settings window if it exists
+            if settings_window:
+                for widget in settings_window.winfo_children():
+                    if isinstance(widget, Frame) and len(widget.winfo_children()) > 0:
+                        if isinstance(widget.winfo_children()[0], Label):
+                            widget.winfo_children()[0].config(text=self.toggle_key)
 
             if 'listener' in listener_holder:
                 listener_holder['listener'].stop()
