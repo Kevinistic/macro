@@ -28,13 +28,13 @@ class FrameMain(Frame):
         self.spamming = False
         self.keyboard_controller = Controller()
         self.toggle_key = "F6"  # Key to toggle spamming
+        self.global_spam_speed = 0.03  # Default spam speed in seconds
 
         # Start spam loop thread
         threading.Thread(target=self.spam_loop, daemon=True).start()
 
         # Start global key listener thread
         threading.Thread(target=self.start_global_key_listener, daemon=True).start()
-
 
         self.labels = []
         self.macro_list = []
@@ -155,9 +155,9 @@ class FrameMain(Frame):
                 for key, _ in self.macro_list:
                     self.keyboard_controller.press(key)
                     self.keyboard_controller.release(key)
-                    time.sleep(0.03)
+                    time.sleep(self.global_spam_speed)  # Use global spam speed
             else:
-                time.sleep(0.03)
+                time.sleep(self.global_spam_speed)  # Sleep to avoid busy waiting
 
     def start_global_key_listener(self):
         def on_press(key):
@@ -178,24 +178,39 @@ class FrameMain(Frame):
         top.grab_set()
         
         # Configure grid for the settings window
-        top.columnconfigure(0, weight=1)
-        top.columnconfigure(1, weight=3)
+        top.columnconfigure(0, weight=1, minsize=150)
+        top.columnconfigure(1, weight=1, minsize=150)
+        top.columnconfigure(2, weight=1, minsize=100)
         
-        # Toggle key setting
+        # Toggle key setting - now directly in grid
         Label(top, text="Toggle Key:").grid(
-            column=0, row=0, padx=5, pady=5, sticky='e')
+            column=0, row=2, padx=5, pady=5, sticky='e')
         
-        current_key_frame = Frame(top)
-        current_key_frame.grid(column=1, row=0, sticky='w')
+        # Current key label
+        self.current_key_label = Label(top, text=self.toggle_key, width=5)
+        self.current_key_label.grid(column=1, row=2, sticky='w')
         
-        Label(current_key_frame, text=self.toggle_key, width=5).pack(side='left')
-        ttk.Button(current_key_frame, text="Change", 
-                    command=lambda: self.change_toggle_key(top)).pack(side='left', padx=5)
+        # Change button
+        ttk.Button(top, text="Change", 
+                command=lambda: self.change_toggle_key(top)).grid(
+                column=2, row=2, sticky='w', padx=5)
         
-        Label(top, text="Global Spam Speed:").grid(
-            column=0, row=1, sticky='e')
-        Label(top, text="Coming Soon").grid(
-            column=1, row=1, sticky='w')
+        # Global spam speed setting - now directly in grid
+        Label(top, text="Spam Speed (s):").grid(
+            column=0, row=3, padx=5, pady=5, sticky='e')
+        
+        # Current speed label
+        self.current_speed_label = Label(top, text=f"{self.global_spam_speed:.3f}")
+        self.current_speed_label.grid(column=1, row=3, sticky='w')
+        
+        # Change button
+        ttk.Button(top, text="Change", 
+                command=lambda: self.change_spam_speed(top)).grid(
+                column=2, row=3, sticky='w', padx=5)
+        
+        # Close button
+        ttk.Button(top, text="Close", command=top.destroy).grid(
+            column=2, row=10, pady=20, sticky='e')
 
     def change_toggle_key(self, settings_window=None):
         top = Toplevel(self)
@@ -205,7 +220,7 @@ class FrameMain(Frame):
         top.grab_set()
 
         Label(top, text=f"Press a new key to toggle spam (current: {self.toggle_key}).", 
-              wraplength=280, justify="center").pack(pady=10)
+            wraplength=280, justify="center").pack(pady=10)
 
         listener_holder = {}
 
@@ -219,12 +234,9 @@ class FrameMain(Frame):
             messagebox.showinfo("Key Changed", f"New toggle key is set to: {self.toggle_key}")
             print(f"Toggle key changed to: {self.toggle_key}")
             
-            # Update the settings window if it exists
+            # Update the settings window display
             if settings_window:
-                for widget in settings_window.winfo_children():
-                    if isinstance(widget, Frame) and len(widget.winfo_children()) > 0:
-                        if isinstance(widget.winfo_children()[0], Label):
-                            widget.winfo_children()[0].config(text=self.toggle_key)
+                self.current_key_label.config(text=self.toggle_key)
 
             if 'listener' in listener_holder:
                 listener_holder['listener'].stop()
@@ -242,6 +254,48 @@ class FrameMain(Frame):
         listener = Listener(on_press=on_press)
         listener_holder['listener'] = listener
         listener.start()
+
+    def change_spam_speed(self, settings_window=None):
+        top = Toplevel(self)
+        top.title("Change Spam Speed")
+        top.geometry("300x200")
+        top.attributes('-topmost', True)
+        top.grab_set()
+
+        # Instruction label
+        Label(top, text="Enter new spam speed (0.01 to 1.0 seconds):", 
+            wraplength=280, justify="center").pack(pady=10)
+
+        # Entry field with current value
+        speed_entry = ttk.Entry(top)
+        speed_entry.insert(0, str(self.global_spam_speed))
+        speed_entry.pack(pady=5)
+
+        # Validation function
+        def validate_speed():
+            try:
+                new_speed = float(speed_entry.get())
+                if 0.01 <= new_speed <= 1.0:
+                    self.global_spam_speed = new_speed
+                    messagebox.showinfo("Success", f"Spam speed set to {new_speed:.3f} seconds")
+                    
+                    # Update the settings window display
+                    if settings_window:
+                        self.current_speed_label.config(text=f"{new_speed:.3f}")
+                    
+                    top.destroy()
+                else:
+                    messagebox.showerror("Error", "Please enter a value between 0.01 and 1.0")
+            except ValueError:
+                messagebox.showerror("Error", "Please enter a valid number")
+
+        # Confirm button
+        confirm_btn = ttk.Button(top, text="Confirm", command=validate_speed)
+        confirm_btn.pack(pady=10)
+
+        # Cancel button
+        cancel_btn = ttk.Button(top, text="Cancel", command=top.destroy)
+        cancel_btn.pack(pady=5)
 
 if __name__ == "__main__":
     app = App()
