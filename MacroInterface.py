@@ -4,7 +4,7 @@ from tkinter import ttk, messagebox
 import time
 import threading
 import os
-from pynput.keyboard import Controller, Listener, Key
+from pynput.keyboard import Controller, Listener, Key, KeyCode
 
 class App(Tk):
     def __init__(self):
@@ -162,7 +162,13 @@ class FrameMain(Frame):
     def start_global_key_listener(self):
         def on_press(key):
             try:
-                key_str = key.char.upper() if hasattr(key, 'char') and key.char else key.name.upper()
+                if isinstance(key, KeyCode):
+                    key_str = key.char.upper() if key.char else None
+                elif isinstance(key, Key):
+                    key_str = key.name.upper()
+                else:
+                    key_str = None
+
                 if key_str == self.toggle_key:
                     self.spamming = not self.spamming
                     print(f"Spamming {'enabled' if self.spamming else 'disabled'}")
@@ -184,33 +190,33 @@ class FrameMain(Frame):
         
         # Toggle key setting - now directly in grid
         Label(top, text="Toggle Key:").grid(
-            column=0, row=2, padx=5, pady=5, sticky='e')
+            column=0, row=0, padx=5, pady=5, sticky='e')
         
         # Current key label
         self.current_key_label = Label(top, text=self.toggle_key, width=5)
-        self.current_key_label.grid(column=1, row=2, sticky='w')
+        self.current_key_label.grid(column=1, row=0, sticky='w')
         
         # Change button
         ttk.Button(top, text="Change", 
                 command=lambda: self.change_toggle_key(top)).grid(
-                column=2, row=2, sticky='w', padx=5)
+                column=2, row=0, sticky='w', padx=5)
         
         # Global spam speed setting - now directly in grid
         Label(top, text="Spam Speed (s):").grid(
-            column=0, row=3, padx=5, pady=5, sticky='e')
+            column=0, row=1, padx=5, pady=5, sticky='e')
         
         # Current speed label
         self.current_speed_label = Label(top, text=f"{self.global_spam_speed:.3f}")
-        self.current_speed_label.grid(column=1, row=3, sticky='w')
+        self.current_speed_label.grid(column=1, row=1, sticky='w')
         
         # Change button
         ttk.Button(top, text="Change", 
                 command=lambda: self.change_spam_speed(top)).grid(
-                column=2, row=3, sticky='w', padx=5)
+                column=2, row=1, sticky='w', padx=5)
         
         # Close button
         ttk.Button(top, text="Close", command=top.destroy).grid(
-            column=2, row=10, pady=20, sticky='e')
+            column=2, row=10, sticky='w', padx=5)
 
     def change_toggle_key(self, settings_window=None):
         top = Toplevel(self)
